@@ -28,6 +28,7 @@
   /** Track mouse position globally */
   const mouse = { x: -9999, y: -9999 };
   document.addEventListener('mousemove', (e) => {
+    if (isTouchDevice()) return;
     mouse.x = e.clientX;
     mouse.y = e.clientY;
   });
@@ -70,12 +71,17 @@
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const PARTICLE_COUNT = 100;
-    const CONNECT_DIST = 120;
-    const MOUSE_DIST = 180;
     const COLORS = ['#00f5ff', '#8b5cf6', '#ec4899'];
 
     let width, height, particles;
+    let particleCount, connectDist, mouseDist;
+
+    const updateSettings = () => {
+      const isMobile = window.innerWidth < 768 || isTouchDevice();
+      particleCount = isMobile ? 35 : 100;
+      connectDist = isMobile ? 70 : 120;
+      mouseDist = isMobile ? 0 : 180;
+    };
 
     /** Resize canvas to fill parent / viewport */
     const resize = () => {
@@ -97,14 +103,17 @@
 
     /** Seed all particles */
     const seed = () => {
-      particles = Array.from({ length: PARTICLE_COUNT }, createParticle);
+      particles = Array.from({ length: particleCount }, createParticle);
     };
 
     /** Animation loop */
     const tick = () => {
       ctx.clearRect(0, 0, width, height);
 
-      for (let i = 0; i < particles.length; i++) {
+      const len = particles.length;
+      const connectDistSq = connectDist * connectDist;
+
+      for (let i = 0; i < len; i++) {
         const p = particles[i];
 
         // Update position
@@ -130,37 +139,42 @@
         ctx.fill();
 
         // Connect to nearby particles
-        for (let j = i + 1; j < particles.length; j++) {
+        for (let j = i + 1; j < len; j++) {
           const q = particles[j];
           const dx = p.x - q.x;
           const dy = p.y - q.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
 
-          if (dist < CONNECT_DIST) {
+          if (distSq < connectDistSq) {
+            const dist = Math.sqrt(distSq);
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
             ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-            ctx.globalAlpha = 0.04 * (1 - dist / CONNECT_DIST);
+            ctx.globalAlpha = 0.04 * (1 - dist / connectDist);
             ctx.stroke();
           }
         }
 
         // Connect to mouse
-        const canvasRect = canvas.getBoundingClientRect();
-        const mx = mouse.x - canvasRect.left;
-        const my = mouse.y - canvasRect.top;
-        const mdx = p.x - mx;
-        const mdy = p.y - my;
-        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mouseDist > 0) {
+          const canvasRect = canvas.getBoundingClientRect();
+          const mx = mouse.x - canvasRect.left;
+          const my = mouse.y - canvasRect.top;
+          const mdx = p.x - mx;
+          const mdy = p.y - my;
+          const mDistSq = mdx * mdx + mdy * mdy;
+          const mouseDistSq = mouseDist * mouseDist;
 
-        if (mDist < MOUSE_DIST) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(mx, my);
-          ctx.strokeStyle = 'rgba(0,245,255,0.12)';
-          ctx.globalAlpha = 0.12 * (1 - mDist / MOUSE_DIST);
-          ctx.stroke();
+          if (mDistSq < mouseDistSq) {
+            const mDist = Math.sqrt(mDistSq);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(mx, my);
+            ctx.strokeStyle = 'rgba(0,245,255,0.12)';
+            ctx.globalAlpha = 0.12 * (1 - mDist / mouseDist);
+            ctx.stroke();
+          }
         }
       }
 
@@ -168,13 +182,18 @@
       requestAnimationFrame(tick);
     };
 
+    updateSettings();
     resize();
     seed();
     tick();
 
     window.addEventListener('resize', debounce(() => {
+      const prevCount = particleCount;
+      updateSettings();
       resize();
-      seed(); // Re-distribute on resize
+      if (prevCount !== particleCount) {
+        seed();
+      }
     }, 200));
   };
 
@@ -630,6 +649,7 @@
      ================================================================ */
 
   const initParallaxOrbs = () => {
+    if (isTouchDevice()) return;
     const orbs = document.querySelectorAll('.orb');
     if (!orbs.length) return;
 
@@ -669,6 +689,7 @@
     if (!card) return;
 
     card.addEventListener('mousemove', (e) => {
+      if (isTouchDevice()) return;
       const rect = card.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;

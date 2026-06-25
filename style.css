@@ -1820,6 +1820,21 @@ footer p:last-child {
    RESPONSIVE — 900px
    ══════════════════════════════════════════ */
 @media (max-width: 900px) {
+    /* Disable heavy backdrop filters on mobile for better scroll performance */
+    header.scrolled,
+    .mobile-nav,
+    .tech-ticker,
+    .glass-card {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    header.scrolled {
+        background: rgba(5, 5, 16, 0.98);
+    }
+    .mobile-nav {
+        background: rgba(5, 5, 16, 1);
+    }
+
     .nav-links { display: none; }
     .menu-toggle { display: flex; }
 
