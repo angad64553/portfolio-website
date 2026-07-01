@@ -78,8 +78,8 @@
 
     const updateSettings = () => {
       const isMobile = window.innerWidth < 768 || isTouchDevice();
-      particleCount = isMobile ? 35 : 100;
-      connectDist = isMobile ? 70 : 120;
+      particleCount = isMobile ? 15 : 100;
+      connectDist = isMobile ? 0 : 120;   // disable O(n²) connections on mobile
       mouseDist = isMobile ? 0 : 180;
     };
 
@@ -107,11 +107,19 @@
     };
 
     /** Animation loop */
+    let animId;
+
     const tick = () => {
       ctx.clearRect(0, 0, width, height);
 
       const len = particles.length;
       const connectDistSq = connectDist * connectDist;
+
+      // Cache rect ONCE per frame instead of per-particle (avoids layout thrashing)
+      const canvasRect = mouseDist > 0 ? canvas.getBoundingClientRect() : null;
+      const mx = canvasRect ? mouse.x - canvasRect.left : 0;
+      const my = canvasRect ? mouse.y - canvasRect.top : 0;
+      const mouseDistSq = mouseDist * mouseDist;
 
       for (let i = 0; i < len; i++) {
         const p = particles[i];
@@ -138,33 +146,31 @@
         ctx.globalAlpha = p.alpha;
         ctx.fill();
 
-        // Connect to nearby particles
-        for (let j = i + 1; j < len; j++) {
-          const q = particles[j];
-          const dx = p.x - q.x;
-          const dy = p.y - q.y;
-          const distSq = dx * dx + dy * dy;
+        // Connect to nearby particles (SKIP entirely on mobile where connectDist=0)
+        if (connectDist > 0) {
+          for (let j = i + 1; j < len; j++) {
+            const q = particles[j];
+            const dx = p.x - q.x;
+            const dy = p.y - q.y;
+            const distSq = dx * dx + dy * dy;
 
-          if (distSq < connectDistSq) {
-            const dist = Math.sqrt(distSq);
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(q.x, q.y);
-            ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-            ctx.globalAlpha = 0.04 * (1 - dist / connectDist);
-            ctx.stroke();
+            if (distSq < connectDistSq) {
+              const dist = Math.sqrt(distSq);
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(q.x, q.y);
+              ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+              ctx.globalAlpha = 0.04 * (1 - dist / connectDist);
+              ctx.stroke();
+            }
           }
         }
 
-        // Connect to mouse
-        if (mouseDist > 0) {
-          const canvasRect = canvas.getBoundingClientRect();
-          const mx = mouse.x - canvasRect.left;
-          const my = mouse.y - canvasRect.top;
+        // Connect to mouse (desktop only)
+        if (mouseDist > 0 && canvasRect) {
           const mdx = p.x - mx;
           const mdy = p.y - my;
           const mDistSq = mdx * mdx + mdy * mdy;
-          const mouseDistSq = mouseDist * mouseDist;
 
           if (mDistSq < mouseDistSq) {
             const mDist = Math.sqrt(mDistSq);
@@ -179,13 +185,22 @@
       }
 
       ctx.globalAlpha = 1;
-      requestAnimationFrame(tick);
+      animId = requestAnimationFrame(tick);
     };
 
     updateSettings();
     resize();
     seed();
-    tick();
+    animId = requestAnimationFrame(tick);
+
+    // Pause particles when tab is hidden (saves CPU/battery on mobile)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animId);
+      } else {
+        animId = requestAnimationFrame(tick);
+      }
+    });
 
     window.addEventListener('resize', debounce(() => {
       const prevCount = particleCount;
@@ -236,11 +251,18 @@
     const header = document.querySelector('header');
     if (!header) return;
 
+    let headerTicking = false;
     const check = () => {
       header.classList.toggle('scrolled', window.scrollY > 50);
+      headerTicking = false;
     };
 
-    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('scroll', () => {
+      if (!headerTicking) {
+        requestAnimationFrame(check);
+        headerTicking = true;
+      }
+    }, { passive: true });
     check(); // Run on init
   };
 
@@ -455,6 +477,7 @@
      ================================================================ */
 
   const initCardTilt = () => {
+    if (isTouchDevice()) return; // Skip 3D tilt on mobile — no hover
     const cards = document.querySelectorAll('.project-card');
     if (!cards.length) return;
 
@@ -549,10 +572,17 @@
     const btn = document.querySelector('.back-to-top');
     if (!btn) return;
 
+    let topTicking = false;
     window.addEventListener(
       'scroll',
       () => {
-        btn.classList.toggle('visible', window.scrollY > 500);
+        if (!topTicking) {
+          requestAnimationFrame(() => {
+            btn.classList.toggle('visible', window.scrollY > 500);
+            topTicking = false;
+          });
+          topTicking = true;
+        }
       },
       { passive: true }
     );

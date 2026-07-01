@@ -186,7 +186,7 @@ img {
     transform: translate(-50%, -50%);
     z-index: 1;
     transition: opacity 0.3s;
-    will-change: left, top;
+    will-change: transform;
 }
 
 /* ══════════════════════════════════════════
@@ -707,6 +707,7 @@ body.js-enabled .reveal.active,
     gap: 1rem;
     padding: 1.1rem 0;
     animation: tickerMove 28s linear infinite;
+    will-change: transform;
 }
 
 .ticker-track span {
@@ -1820,7 +1821,9 @@ footer p:last-child {
    RESPONSIVE — 900px
    ══════════════════════════════════════════ */
 @media (max-width: 900px) {
-    /* Disable heavy backdrop filters on mobile for better scroll performance */
+    /* ── MOBILE PERFORMANCE: Disable ALL heavy GPU effects ── */
+
+    /* 1) Kill backdrop-filter everywhere */
     header.scrolled,
     .mobile-nav,
     .tech-ticker,
@@ -1834,6 +1837,64 @@ footer p:last-child {
     .mobile-nav {
         background: rgba(5, 5, 16, 1);
     }
+    /* Solid bg for glass-card since backdrop-filter is off */
+    .glass-card {
+        background: rgba(15, 15, 35, 0.85);
+    }
+    .glass-card:hover {
+        background: rgba(20, 20, 45, 0.9);
+    }
+
+    /* 2) HIDE floating orbs — filter:blur(100px) on 600px divs is GPU suicide on mobile */
+    .orb {
+        display: none !important;
+    }
+
+    /* 3) Kill heavy CSS animations */
+    .orb-1, .orb-2, .orb-3 {
+        animation: none;
+    }
+    .showcase-orbit::before,
+    .showcase-orbit::after {
+        animation: none;
+    }
+    .project-glow {
+        animation: none;
+        display: none;
+    }
+    .btn-primary {
+        background-size: 100% 100%;
+        animation: none;
+    }
+    .logo {
+        animation: none;
+    }
+    .gradient-text {
+        animation: none;
+    }
+
+    /* 4) Add containment for better paint performance */
+    .section {
+        contain: layout style paint;
+    }
+
+    /* 5) Disable hover transforms (no hover on touch devices) */
+    .project-card:hover {
+        transform: none;
+        box-shadow: var(--shadow-card);
+    }
+    .skill-item:hover {
+        transform: none;
+    }
+    .cert-card:hover,
+    .edu-card:hover,
+    .timeline-content:hover,
+    .contact-card:hover {
+        transform: none;
+    }
+    .pill:hover {
+        transform: none;
+    }
 
     .nav-links { display: none; }
     .menu-toggle { display: flex; }
@@ -1844,7 +1905,10 @@ footer p:last-child {
     .hero-name { font-size: 3.5rem; letter-spacing: 0; }
     .hero-typewriter { font-size: 1.5rem; }
     .hero-showcase { min-height: auto; justify-content: flex-start; }
-    .showcase-card { max-width: 520px; }
+    .showcase-card {
+        max-width: 520px;
+        box-shadow: var(--shadow-card);
+    }
     .scroll-indicator { display: none; }
 
     .section { padding: 80px 5%; }
@@ -1909,4 +1973,18 @@ footer p:last-child {
     .contact-card { padding: 1rem; }
     .project-card { padding: 1.5rem; }
     .mobile-nav-link { font-size: 1.5rem; }
+}
+
+/* ══════════════════════════════════════════
+   ACCESSIBILITY: Reduced Motion
+   ══════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    .orb { display: none !important; }
+    #particles { display: none !important; }
 }
